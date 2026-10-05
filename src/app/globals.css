@@ -1,0 +1,262 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --background: #F6F7FB;
+  --foreground: #1E2233;
+  --surface: #FFFFFF;
+  --surface-alt: #EDEFF7;
+  --primary: #5B6CFF;
+  --primary-dark: #7C8CFF;
+  --secondary: #FF8A65;
+  --success: #3DDC97;
+  --error: #FF5D6C;
+  --warning: #FFC24B;
+  --heart-empty: #DADFEA;
+}
+
+.dark,
+[data-theme="dark"] {
+  --background: #11131A;
+  --foreground: #F3F4FA;
+  --surface: #1B1E29;
+  --surface-alt: #242836;
+  --primary: #7C8CFF;
+  --primary-dark: #5B6CFF;
+  --secondary: #FF8A65;
+  --success: #3DDC97;
+  --error: #FF5D6C;
+  --warning: #FFC24B;
+  --heart-empty: #3A3F52;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    opacity: 0.95;
+    transform: translateY(-160px) scale(1.25);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-220px) scale(1.35);
+  }
+}
+
+@keyframes scoreDelta {
+  0% {
+    opacity: 1;
+    transform: translateY(2px);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes cellInitialPop {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes waveFlow {
+  0% {
+    opacity: 0;
+    transform: translate(calc(var(--dir-x, 0) * -22px), calc(var(--dir-y, 0) * -22px)) scale(0.88);
+  }
+  30% {
+    opacity: 0.92;
+    transform: translate(0, 0) scale(1.06);
+  }
+  60% {
+    opacity: 0.65;
+    transform: translate(calc(var(--dir-x, 0) * 3px), calc(var(--dir-y, 0) * 3px)) scale(1.01);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dir-x, 0) * 6px), calc(var(--dir-y, 0) * 6px)) scale(0.96);
+  }
+}
+
+@keyframes waveNumberPop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  70% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cellErrorShake {
+  0%, 100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  15% {
+    transform: translateX(-7px) rotate(-1.5deg);
+  }
+  30% {
+    transform: translateX(7px) rotate(1.5deg);
+  }
+  45% {
+    transform: translateX(-5px) rotate(-1deg);
+  }
+  60% {
+    transform: translateX(5px) rotate(1deg);
+  }
+  75% {
+    transform: translateX(-3px) rotate(-0.5deg);
+  }
+  90% {
+    transform: translateX(2px) rotate(0.5deg);
+  }
+}
+
+@keyframes cellGentleShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes errorNumberPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.28);
+  }
+  50% {
+    transform: scale(0.92);
+  }
+  75% {
+    transform: scale(1.12);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-floatUp {
+  animation: floatUp 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.animate-scoreDelta {
+  animation: scoreDelta 0.75s ease-out forwards;
+}
+
+.animate-initialPop {
+  animation: cellInitialPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-waveFlow {
+  animation: waveFlow 0.55s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-cellShake {
+  animation: cellErrorShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.animate-errorNumber {
+  animation: errorNumberPulse 0.45s ease-in-out both;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ========================================================================= */
+/* RESPONSIVE DISPLAY SCALING FOR LAPTOPS & DESKTOPS                         */
+/* Scales the entire UI to a comfortable 120%-128% size on laptop/desktop   */
+/* viewports (e.g. 15.6" 1080p laptop displays) while maintaining 100%       */
+/* natural mobile scale on phones and tablets (< 1024px).                    */
+/* ========================================================================= */
+@media screen and (min-width: 1024px) and (min-height: 600px) {
+  html {
+    zoom: 1.18;
+  }
+}
+
+@media screen and (min-width: 1280px) and (min-height: 680px) {
+  html {
+    zoom: 1.25;
+  }
+}
+
+@media screen and (min-width: 1536px) and (min-height: 720px) {
+  html {
+    zoom: 1.28;
+  }
+}
