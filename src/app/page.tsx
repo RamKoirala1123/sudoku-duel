@@ -25,7 +25,7 @@ import { NumberPad } from "@/components/NumberPad";
 import { PauseDialog } from "@/components/PauseDialog";
 import { RestartConfirmDialog } from "@/components/RestartConfirmDialog";
 import { GameResultOverlay } from "@/components/GameResultOverlay";
-import { RaceLeaderboard } from "@/components/RaceLeaderboard";
+import { LeaderboardDrawer } from "@/components/LeaderboardDrawer";
 import { FloatingEmojiOverlay, FloatingEmoji } from "@/components/FloatingEmojiOverlay";
 import { CountdownOverlay } from "@/components/CountdownOverlay";
 import { KnockoutOverlay } from "@/components/KnockoutOverlay";
@@ -122,6 +122,7 @@ export default function SudokuApp() {
   const [showPauseDialog, setShowPauseDialog] = useState<boolean>(false);
   const [showRestartConfirmDialog, setShowRestartConfirmDialog] = useState<boolean>(false);
   const [showOpponentLeftDialog, setShowOpponentLeftDialog] = useState<boolean>(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState<boolean>(false);
   const hadMultiplePlayersRef = React.useRef<boolean>(false);
 
   // Sudoku Hook
@@ -146,6 +147,29 @@ export default function SudokuApp() {
     shakeAnimation,
     conflictHighlight,
   } = useSudokuGame(difficulty, mistakeRule);
+
+  // Standings badge info for multiplayer mode top bar
+  const standingsBadge = React.useMemo(() => {
+    if (mode !== "multiplayer_game" || players.length === 0) return undefined;
+    const myId = roomService.getMyPeerId();
+    const sorted = [...players].sort((a, b) => {
+      if (a.isFinished && !b.isFinished) return -1;
+      if (!a.isFinished && b.isFinished) return 1;
+      if (a.isKnockedOut && !b.isKnockedOut) return 1;
+      if (!a.isKnockedOut && b.isKnockedOut) return -1;
+      const progB = b.progress ?? b.progressPercent ?? 0;
+      const progA = a.progress ?? a.progressPercent ?? 0;
+      return progB - progA || a.mistakes - b.mistakes;
+    });
+    const myIdx = sorted.findIndex((p) => p.id === myId);
+    const myPlayer = sorted[myIdx];
+    const prog = myPlayer ? (myPlayer.progress ?? myPlayer.progressPercent ?? 0) : 0;
+    return {
+      rank: myIdx !== -1 ? myIdx + 1 : 1,
+      totalPlayers: players.length,
+      percent: Math.min(100, Math.max(0, Math.round(prog * 100))),
+    };
+  }, [mode, players]);
 
   // Sync client storage and settings after hydration
   useEffect(() => {
@@ -722,6 +746,18 @@ export default function SudokuApp() {
         />
       )}
 
+      {/* Multiplayer Live Standings Drawer */}
+      {mode === "multiplayer_game" && (
+        <LeaderboardDrawer
+          isOpen={isLeaderboardOpen}
+          onClose={() => setIsLeaderboardOpen(false)}
+          players={players}
+          myId={roomService.getMyPeerId()}
+          latencyMs={latencyMs}
+          onSendEmoji={handleSendEmoji}
+        />
+      )}
+
       {/* Multiplayer Menu Screen (Host / Join / Edit Nickname) */}
       {mode === "multiplayer_menu" && (
         <MultiplayerMenuScreen
@@ -1005,6 +1041,8 @@ export default function SudokuApp() {
             onToggleTheme={handleToggleTheme}
             onBack={handleBackHome}
             onPause={mode === "solo_game" && gameState.status === "playing" && !isGenerating ? handleOpenPause : undefined}
+            standingsBadge={standingsBadge}
+            onOpenStandings={() => setIsLeaderboardOpen(true)}
             className="w-full px-2 pt-2 pb-1 select-none"
           />
 
@@ -1139,18 +1177,6 @@ export default function SudokuApp() {
                   )}
                 </div>
               </div>
-
-              {/* Multiplayer Race Progress Leaderboard at bottom */}
-              {mode === "multiplayer_game" && (
-                <div className="w-full mt-4 px-2">
-                  <RaceLeaderboard
-                    players={players}
-                    myId={roomService.getMyPeerId()}
-                    onSendEmoji={handleSendEmoji}
-                    latencyMs={latencyMs}
-                  />
-                </div>
-              )}
             </>
           )}
         </div>

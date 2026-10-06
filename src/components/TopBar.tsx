@@ -12,6 +12,7 @@ import {
   Star,
   Heart,
   AlertTriangle,
+  Trophy,
 } from "lucide-react";
 import { Difficulty, MistakeRule } from "@/lib/types";
 
@@ -30,6 +31,12 @@ interface TopBarProps {
   onBack: () => void;
   onPause?: () => void;
   className?: string;
+  standingsBadge?: {
+    rank: number;
+    totalPlayers: number;
+    percent: number;
+  };
+  onOpenStandings?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -47,6 +54,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onBack,
   onPause,
   className = "w-full select-none",
+  standingsBadge,
+  onOpenStandings,
 }) => {
   const diffLabel = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
   const textColor = isDarkMode ? "#F3F4FA" : "#1E2233";
@@ -84,7 +93,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         document.documentElement.style.zoom = next;
       }
       window.dispatchEvent(new Event("sudoku-zoom-change"));
-    } catch {}
+    } catch { }
   };
 
   const zoomLabel =
@@ -107,15 +116,33 @@ export const TopBar: React.FC<TopBarProps> = ({
           <ChevronLeft className="w-6 h-6" />
         </button>
 
-        {/* Flutter Difficulty Badge: color: AppColors.primary (0.12 alpha), borderRadius: 10 */}
-        <div
-          style={{
-            backgroundColor: isDarkMode ? "rgba(124, 140, 255, 0.15)" : "rgba(91, 108, 255, 0.12)",
-            color: primaryColor,
-          }}
-          className="px-3.5 py-1 rounded-[10px] font-bold text-sm tracking-wide"
-        >
-          {diffLabel}
+        {/* Center: Difficulty Badge + Optional Multiplayer Standings Button */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div
+            style={{
+              backgroundColor: isDarkMode ? "rgba(124, 140, 255, 0.15)" : "rgba(91, 108, 255, 0.12)",
+              color: primaryColor,
+            }}
+            className="px-3 sm:px-3.5 py-1 rounded-[10px] font-bold text-xs sm:text-sm tracking-wide"
+          >
+            {diffLabel}
+          </div>
+
+          {standingsBadge && onOpenStandings && (
+            <button
+              type="button"
+              onClick={onOpenStandings}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-[10px] font-bold text-xs sm:text-sm tracking-wide transition-all duration-150 bg-amber-500/15 text-amber-600 dark:bg-amber-400/20 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 active:scale-95 cursor-pointer shadow-xs"
+              title="Click to view live multiplayer standings"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>
+                {standingsBadge.totalPlayers === 2
+                  ? `#${standingsBadge.rank} (${standingsBadge.percent}%)`
+                  : `${standingsBadge.rank}/${standingsBadge.totalPlayers}`}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Action icons: Zoom, Sound, Theme, Pause */}
@@ -196,13 +223,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                         fill: isAlive
                           ? "#FF5D6C"
                           : isDarkMode
-                          ? "#3A3F52"
-                          : "#DADFEA",
+                            ? "#3A3F52"
+                            : "#DADFEA",
                         color: isAlive
                           ? "#FF5D6C"
                           : isDarkMode
-                          ? "#3A3F52"
-                          : "#DADFEA",
+                            ? "#3A3F52"
+                            : "#DADFEA",
                       }}
                       className="w-5 h-5 transition-transform duration-200"
                     />
@@ -234,9 +261,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           {lastDelta !== undefined && lastDelta !== null && lastDelta !== 0 && (
             <span
               key={`${score}-${lastDelta}`}
-              className={`absolute -top-3.5 right-0 text-xs font-bold animate-scoreDelta pointer-events-none ${
-                lastDelta > 0 ? "text-emerald-500" : "text-rose-500"
-              }`}
+              className={`absolute -top-3.5 right-0 text-xs font-bold animate-scoreDelta pointer-events-none ${lastDelta > 0 ? "text-emerald-500" : "text-rose-500"
+                }`}
             >
               {lastDelta > 0 ? `+${lastDelta}` : lastDelta}
             </span>
