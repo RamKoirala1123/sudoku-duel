@@ -239,24 +239,38 @@ body {
 
 /* ========================================================================= */
 /* RESPONSIVE DISPLAY SCALING FOR LAPTOPS & DESKTOPS                         */
-/* Scales the entire UI to a comfortable 120%-128% size on laptop/desktop   */
-/* viewports (e.g. 15.6" 1080p laptop displays) while maintaining 100%       */
-/* natural mobile scale on phones and tablets (< 1024px).                    */
+/* - 14-inch laptops (typically <= 800px viewport height or <= 1400px width  */
+/*   with 125%-150% Windows scaling) maintain a clean, comfortable 100%      */
+/*   natural scale so the UI is not over-zoomed.                             */
+/* - 15.6"+ displays (with >= 820px viewport height and >= 1500px width)     */
+/*   maintain the comfortable 1.22-1.25 scale as desired.                    */
 /* ========================================================================= */
-@media screen and (min-width: 1024px) and (min-height: 600px) {
+
+/* Compact laptop screens with short vertical height (< 680px, e.g. 14" at 150% scaling) */
+@media screen and (min-width: 1024px) and (max-height: 680px) {
   html {
-    zoom: 1.18;
+    zoom: 0.94;
   }
 }
 
-@media screen and (min-width: 1280px) and (min-height: 680px) {
+/* 14-inch laptop screens (typically 680px - 800px viewport height) */
+@media screen and (min-width: 1024px) and (max-height: 800px) {
+  html {
+    zoom: 1.0;
+  }
+}
+
+/* Moderate laptop viewports (e.g. 14"-15" border, 800px - 840px height) */
+@media screen and (min-width: 1440px) and (min-height: 800px) and (max-height: 840px) {
+  html {
+    zoom: 1.12;
+  }
+}
+
+/* 15.6" Full HD 1080p displays (typically > 840px usable viewport height & >= 1536px width) */
+@media screen and (min-width: 1536px) and (min-height: 840px) {
   html {
     zoom: 1.25;
   }
 }
 
-@media screen and (min-width: 1536px) and (min-height: 720px) {
-  html {
-    zoom: 1.28;
-  }
-}

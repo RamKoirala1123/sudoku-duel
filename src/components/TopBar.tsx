@@ -52,10 +52,50 @@ export const TopBar: React.FC<TopBarProps> = ({
   const textColor = isDarkMode ? "#F3F4FA" : "#1E2233";
   const primaryColor = isDarkMode ? "#7C8CFF" : "#5B6CFF";
 
+  const zoomLevel = React.useSyncExternalStore(
+    (notify) => {
+      window.addEventListener("storage", notify);
+      window.addEventListener("sudoku-zoom-change", notify);
+      return () => {
+        window.removeEventListener("storage", notify);
+        window.removeEventListener("sudoku-zoom-change", notify);
+      };
+    },
+    () => {
+      try {
+        return localStorage.getItem("sudoku_zoom") || "auto";
+      } catch {
+        return "auto";
+      }
+    },
+    () => "auto"
+  );
+
+  const handleCycleZoom = () => {
+    const levels = ["auto", "0.9", "1", "1.15"];
+    const curIdx = levels.indexOf(zoomLevel);
+    const next = levels[curIdx === -1 ? 1 : (curIdx + 1) % levels.length];
+    try {
+      if (next === "auto") {
+        localStorage.removeItem("sudoku_zoom");
+        document.documentElement.style.zoom = "";
+      } else {
+        localStorage.setItem("sudoku_zoom", next);
+        document.documentElement.style.zoom = next;
+      }
+      window.dispatchEvent(new Event("sudoku-zoom-change"));
+    } catch {}
+  };
+
+  const zoomLabel =
+    zoomLevel === "auto"
+      ? "Auto"
+      : `${Math.round(parseFloat(zoomLevel) * 100)}%`;
+
   return (
     <header className={className}>
       {/* Upper Row: Back button, Difficulty pill, Action icons */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2 sm:mb-2.5">
         {/* Back Button */}
         <button
           type="button"
@@ -78,8 +118,18 @@ export const TopBar: React.FC<TopBarProps> = ({
           {diffLabel}
         </div>
 
-        {/* Action icons: Sound, Theme, Pause */}
+        {/* Action icons: Zoom, Sound, Theme, Pause */}
         <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={handleCycleZoom}
+            className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition cursor-pointer text-xs font-semibold"
+            style={{ color: textColor }}
+            title={`UI Zoom: ${zoomLabel}. Click to adjust scale (Auto, 90%, 100%, 115%).`}
+          >
+            <span className="text-[11px] font-mono tracking-tight opacity-75">{zoomLabel}</span>
+          </button>
+
           <button
             type="button"
             onClick={onToggleMute}

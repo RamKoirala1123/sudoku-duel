@@ -30,6 +30,7 @@ export class P2PRoomService {
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
     ],
   };
 
@@ -51,7 +52,10 @@ export class P2PRoomService {
   private _players = new Map<string, PlayerProgress>();
   private _guestPc: RTCPeerConnection | null = null;
   private _guestDc: RTCDataChannel | null = null;
-  private _pingTimer: NodeJS.Timeout | null = null;
+  private _pingTimer: ReturnType<typeof setInterval> | null = null;
+  private _guestPendingCandidates: RTCIceCandidateInit[] = [];
+  private _hostPendingCandidates = new Map<string, RTCIceCandidateInit[]>();
+  private _playerLastSeen = new Map<string, number>();
 
   private _msgListeners: MessageListener[] = [];
   private _playersListeners: PlayersChangeListener[] = [];
@@ -121,7 +125,7 @@ export class P2PRoomService {
     this.localPlayerName = params.hostName;
     this.puzzle = params.puzzle;
     this.mistakeRule = params.mistakeRule ?? 'standard';
-    this.roomCode = params.roomCode ?? P2PRoomService.generate6DigitCode();
+    this.roomCode = (params.roomCode ?? P2PRoomService.generate6DigitCode()).trim().toUpperCase();
     this.isGameStarted = false;
     this.isMatchOver = false;
     this.winner = null;
@@ -152,7 +156,7 @@ export class P2PRoomService {
 
     const connected = await this._setupHostSignaling();
     if (!connected) {
-      throw new Error('Could not connect to signaling network.');
+      throw new Error('Could not connect to signaling network. Please check your internet connection.');
     }
     this._notify();
   }
@@ -244,7 +248,7 @@ export class P2PRoomService {
                 })
               );
 
-              // Add guest's ICE candidates
+              // Add guest's initial ICE candidates
               if (Array.isArray(answerObj.candidates)) {
                 for (const cand of answerObj.candidates) {
                   try {
@@ -253,6 +257,17 @@ export class P2PRoomService {
                     console.warn('[Host] Failed to add guest ICE candidate:', e);
                   }
                 }
+              }
+
+              // Drain any queued trickle candidates
+              const pendingCands = this._hostPendingCandidates.get(guestId);
+              if (pendingCands) {
+                for (const cand of pendingCands) {
+                  try {
+                    await session.pc.addIceCandidate(new RTCIceCandidate(cand));
+                  } catch {}
+                }
+                this._hostPendingCandidates.delete(guestId);
               }
             } catch (e) {
               console.error('[Host] Failed to set answer:', e);
@@ -265,11 +280,20 @@ export class P2PRoomService {
         const cand = msg.candidate as RTCIceCandidateInit;
         if (targetId === 'host' && senderId && cand) {
           const session = this._peerSessions.get(senderId);
-          if (session && session.pc.remoteDescription) {
-            try {
-              await session.pc.addIceCandidate(new RTCIceCandidate(cand));
-            } catch (e) {
-              console.warn('[Host] Failed to add trickle candidate:', e);
+          if (session) {
+            if (session.pc.remoteDescription) {
+              try {
+                await session.pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn('[Host] Failed to add trickle candidate:', e);
+              }
+            } else {
+              let q = this._hostPendingCandidates.get(senderId);
+              if (!q) {
+                q = [];
+                this._hostPendingCandidates.set(senderId, q);
+              }
+              q.push(cand);
             }
           }
         }
@@ -351,6 +375,16 @@ export class P2PRoomService {
       }
     };
 
+    pc.onconnectionstatechange = () => {
+      if (
+        pc.connectionState === 'disconnected' ||
+        pc.connectionState === 'failed' ||
+        pc.connectionState === 'closed'
+      ) {
+        this._handlePeerDisconnected(guestId);
+      }
+    };
+
     this._setupHostDataChannel(session);
 
     const offer = await pc.createOffer();
@@ -380,6 +414,34 @@ export class P2PRoomService {
       hostName: this.localPlayerName,
       mistakeRule: this.mistakeRule,
     });
+  }
+
+  private _handlePeerDisconnected(peerId: string) {
+    if (!this._players.has(peerId)) return;
+    const session = this._peerSessions.get(peerId);
+    if (session) {
+      session.isConnected = false;
+      try { session.dc?.close(); } catch {}
+      try { session.pc?.close(); } catch {}
+    }
+    this._peerSessions.delete(peerId);
+    this._cachedOffers.delete(peerId);
+    this._players.delete(peerId);
+    this._playerLastSeen.delete(peerId);
+    this._updateRanks();
+    this._notify();
+    this._broadcastToGuests({ type: 'player_left', playerId: peerId });
+    this._signaling?.send({ type: 'player_left', playerId: peerId });
+    this._checkMatchOver();
+  }
+
+  private _handleHostDisconnected() {
+    if (!this._players.has('host')) return;
+    this._players.delete('host');
+    this._playerLastSeen.delete('host');
+    this._updateRanks();
+    this._notify();
+    this._checkMatchOver();
   }
 
   private _setupHostDataChannel(session: PeerSession) {
@@ -443,14 +505,7 @@ export class P2PRoomService {
     };
 
     dc.onclose = () => {
-      session.isConnected = false;
-      this._peerSessions.delete(peerId);
-      this._cachedOffers.delete(peerId);
-      this._players.delete(peerId);
-      this._notify();
-      this._broadcastToGuests({ type: 'player_left', playerId: peerId });
-      this._signaling?.send({ type: 'player_left', playerId: peerId });
-      this._checkMatchOver();
+      this._handlePeerDisconnected(peerId);
     };
 
     dc.onmessage = (e) => {
@@ -467,7 +522,7 @@ export class P2PRoomService {
 
   async joinWith6DigitCode(roomCode: string, guestName: string): Promise<void> {
     this.isHost = false;
-    this.roomCode = roomCode.trim();
+    this.roomCode = roomCode.trim().toUpperCase();
     this.localPlayerId = `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     this.localPlayerName = guestName;
     this.isGameStarted = false;
@@ -479,31 +534,35 @@ export class P2PRoomService {
     const guestClientId = `g_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     this._signaling = new SignalingService(this.roomCode, guestClientId);
     const connected = await this._signaling.connect();
-    if (!connected) throw new Error('Could not connect to signaling network.');
+    if (!connected) throw new Error('Could not connect to signaling network. Please check your internet connection.');
 
     return new Promise((resolve, reject) => {
-      let retryTimer: NodeJS.Timeout | null = null;
+      let retryTimer: ReturnType<typeof setInterval> | null = null;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
       let isResolved = false;
 
       const cleanup = () => {
-        clearTimeout(timeout);
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
         if (retryTimer) {
           clearInterval(retryTimer);
           retryTimer = null;
         }
       };
 
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         cleanup();
         if (!isResolved) {
           if (this._players.size >= 1) {
             isResolved = true;
             resolve();
           } else {
-            reject(new Error('Room not found or host not in lobby.'));
+            reject(new Error('Room not found or host not in lobby. Verify the 6-digit room code and ensure the host is still in the room.'));
           }
         }
-      }, 15000);
+      }, 20000);
 
       this._signaling?.onMessage(async (msg) => {
         const type = msg.type as string;
@@ -525,11 +584,15 @@ export class P2PRoomService {
         } else if (type === 'ice_candidate') {
           const targetId = msg.targetId as string;
           const cand = msg.candidate as RTCIceCandidateInit;
-          if (targetId === this.localPlayerId && cand && this._guestPc?.remoteDescription) {
-            try {
-              await this._guestPc.addIceCandidate(new RTCIceCandidate(cand));
-            } catch (e) {
-              console.warn('[Guest] Failed to add trickle candidate:', e);
+          if (targetId === this.localPlayerId && cand) {
+            if (this._guestPc?.remoteDescription) {
+              try {
+                await this._guestPc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn('[Guest] Failed to add trickle candidate:', e);
+              }
+            } else {
+              this._guestPendingCandidates.push(cand);
             }
           }
         } else if (type === 'lobby_sync') {
@@ -617,7 +680,7 @@ export class P2PRoomService {
         }
       });
 
-      // Request to join immediately, and retry every 1500ms
+      // Request to join immediately, and retry every 1200ms
       const sendRequest = () => {
         this._signaling?.send({
           type: 'join_request',
@@ -627,7 +690,7 @@ export class P2PRoomService {
       };
 
       sendRequest();
-      retryTimer = setInterval(sendRequest, 1500);
+      retryTimer = setInterval(sendRequest, 1200);
     });
   }
 
@@ -684,6 +747,16 @@ export class P2PRoomService {
     const pc = new RTCPeerConnection(P2PRoomService.RTC_CONFIG);
     this._guestPc = pc;
 
+    pc.onconnectionstatechange = () => {
+      if (
+        pc.connectionState === 'disconnected' ||
+        pc.connectionState === 'failed' ||
+        pc.connectionState === 'closed'
+      ) {
+        this._handleHostDisconnected();
+      }
+    };
+
     const guestCandidates: RTCIceCandidateInit[] = [];
     pc.onicecandidate = (e) => {
       if (e.candidate) {
@@ -717,6 +790,14 @@ export class P2PRoomService {
       }
     }
 
+    // Drain queued trickle candidates from host
+    for (const cand of this._guestPendingCandidates) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch {}
+    }
+    this._guestPendingCandidates = [];
+
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
@@ -736,16 +817,31 @@ export class P2PRoomService {
       setTimeout(resolve, 1500);
     });
 
-    this._signaling?.send({
-      type: 'answer',
-      guestId: this.localPlayerId,
-      answer: JSON.stringify({
-        type: pc.localDescription?.type,
-        sdp: pc.localDescription?.sdp,
-        candidates: guestCandidates,
-        playerName: this.localPlayerName,
-      }),
-    });
+    const sendAnswer = () => {
+      this._signaling?.send({
+        type: 'answer',
+        guestId: this.localPlayerId,
+        answer: JSON.stringify({
+          type: pc.localDescription?.type,
+          sdp: pc.localDescription?.sdp,
+          candidates: guestCandidates,
+          playerName: this.localPlayerName,
+        }),
+      });
+    };
+
+    sendAnswer();
+
+    // Redundancy: if DataChannel hasn't opened yet, re-send answer twice at 1.2s intervals
+    let answerRetries = 0;
+    const answerInterval = setInterval(() => {
+      answerRetries++;
+      if (this._guestDc?.readyState === 'open' || answerRetries >= 2 || !this._signaling) {
+        clearInterval(answerInterval);
+      } else {
+        sendAnswer();
+      }
+    }, 1200);
   }
 
   private _setupGuestDataChannel(dc: RTCDataChannel) {
@@ -759,6 +855,10 @@ export class P2PRoomService {
       );
       this._startPingTicker();
       this._notify();
+    };
+
+    dc.onclose = () => {
+      this._handleHostDisconnected();
     };
 
     dc.onmessage = (e) => {
@@ -776,6 +876,9 @@ export class P2PRoomService {
   private _handleIncomingMessage(data: Record<string, unknown>, fromPeerId: string) {
     const type = data.type as string;
     const senderId = (data.playerId as string) || fromPeerId;
+    if (senderId) {
+      this._playerLastSeen.set(senderId, Date.now());
+    }
 
     if (type === 'welcome') {
       this.localPlayerId = (data.assignedId as string) || this.localPlayerId;
@@ -867,9 +970,11 @@ export class P2PRoomService {
         this._notify();
       }
     } else if (type === 'player_left') {
-      const pid = data.playerId as string;
-      if (pid) {
+      const pid = (data.playerId as string) || (data.senderId as string);
+      if (pid && this._players.has(pid)) {
         this._players.delete(pid);
+        this._playerLastSeen.delete(pid);
+        this._updateRanks();
         this._notify();
         this._checkMatchOver();
       }
@@ -1146,6 +1251,17 @@ export class P2PRoomService {
       } else if (this._guestDc?.readyState === 'open') {
         this._guestDc.send(pingMsg);
       }
+      // Check for silent/dropped peers (> 12s without message/pong)
+      for (const [pid, lastSeen] of this._playerLastSeen.entries()) {
+        if (pid !== this.localPlayerId && now - lastSeen > 12000) {
+          this._playerLastSeen.delete(pid);
+          if (this.isHost) {
+            this._handlePeerDisconnected(pid);
+          } else if (pid === 'host') {
+            this._handleHostDisconnected();
+          }
+        }
+      }
     }, 4000);
   }
 
@@ -1164,6 +1280,10 @@ export class P2PRoomService {
     this._peerSessions.clear();
     this._cachedOffers.clear();
     this._pendingOfferPromises.clear();
+    this._playerLastSeen.clear();
+
+    this._guestPendingCandidates = [];
+    this._hostPendingCandidates.clear();
 
     try { this._guestDc?.close(); } catch {}
     try { this._guestPc?.close(); } catch {}
@@ -1231,13 +1351,43 @@ export class P2PRoomService {
   }
 
   disconnect() {
-    if (this._signaling) {
+    if (this.roomCode) {
+      const leaveMsg = {
+        type: 'player_left',
+        playerId: this.localPlayerId,
+      };
+
+      // 1. Direct WebRTC notification to peers
       try {
-        this._signaling.send({
-          type: 'player_left',
-          playerId: this.localPlayerId,
-        });
+        if (this.isHost) {
+          this._broadcastToGuests(leaveMsg);
+        } else if (this._guestDc?.readyState === 'open') {
+          this._guestDc.send(JSON.stringify(leaveMsg));
+        }
       } catch {}
+
+      // 2. Signaling service broadcast
+      if (this._signaling) {
+        try {
+          this._signaling.send(leaveMsg);
+        } catch {}
+      }
+
+      // 3. Reliable sendBeacon for page unload / window close
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        try {
+          const payload = JSON.stringify({
+            roomCode: this.roomCode,
+            message: {
+              type: 'player_left',
+              playerId: this.localPlayerId,
+              _sender: this.localPlayerId,
+              _time: Date.now(),
+            },
+          });
+          navigator.sendBeacon('/api/signaling', new Blob([payload], { type: 'application/json' }));
+        } catch {}
+      }
     }
     this.dispose();
   }

@@ -14,7 +14,6 @@ import {
   Target,
   Zap,
   ShieldAlert,
-  Sparkles,
 } from "lucide-react";
 import { Difficulty, MistakeRule, PlayerProgress } from "@/lib/types";
 import { soundService } from "@/lib/sound/soundService";
@@ -475,17 +474,17 @@ export const MultiplayerPostGameScreen: React.FC<MultiplayerPostGameScreenProps>
       <button
         type="button"
         onClick={handleCopyShareCard}
-        className="w-full py-3.5 px-4 rounded-[16px] bg-[#5B6CFF]/10 hover:bg-[#5B6CFF]/20 text-[#5B6CFF] dark:text-[#7C8CFF] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer mb-5 border border-[#5B6CFF]/20"
+        className="w-full py-2.5 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 text-zinc-800 dark:text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.99] cursor-pointer mb-4 border border-zinc-200 dark:border-zinc-700 shadow-sm"
       >
         {copiedShare ? (
           <>
-            <Check className="w-4 h-4 text-[#3DDC97]" />
-            <span className="text-[#3DDC97]">Match Summary Copied to Clipboard! ✨</span>
+            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Match summary copied to clipboard!</span>
           </>
         ) : (
           <>
-            <Share2 className="w-4 h-4" />
-            <span>Copy Shareable Match Card (Wordle Style)</span>
+            <Share2 className="w-3.5 h-3.5 text-zinc-500" />
+            <span>Copy Match Summary (Wordle style)</span>
           </>
         )}
       </button>
@@ -493,7 +492,7 @@ export const MultiplayerPostGameScreen: React.FC<MultiplayerPostGameScreenProps>
       {/* ========================================================================= */}
       {/* REMATCH & NAVIGATION CONTROLS                                             */}
       {/* ========================================================================= */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {isHost ? (
           <>
             {/* Host: Play Rematch with New Puzzle */}
@@ -501,19 +500,19 @@ export const MultiplayerPostGameScreen: React.FC<MultiplayerPostGameScreenProps>
               <button
                 type="button"
                 disabled
-                className="w-full py-4 rounded-[18px] bg-black/[0.06] dark:bg-white/[0.08] text-[#1E2233]/40 dark:text-[#F3F4FA]/40 font-bold text-sm sm:text-base border border-black/[0.06] dark:border-white/[0.06] flex items-center justify-center gap-2 cursor-not-allowed select-none"
+                className="w-full py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 font-medium text-xs border border-zinc-200 dark:border-zinc-700 flex items-center justify-center gap-2 cursor-not-allowed select-none"
               >
-                <Users className="w-5 h-5 opacity-40" />
-                <span>Opponents Left (Return to Lobby to Play)</span>
+                <Users className="w-4 h-4 opacity-40" />
+                <span>Opponents Left (Return to Lobby)</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={onRematch}
-                className="w-full py-4 rounded-[18px] bg-gradient-to-r from-[#5B6CFF] to-[#7C8CFF] hover:opacity-95 text-white font-black text-base shadow-lg shadow-[#5B6CFF]/30 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-50 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-semibold text-sm shadow-sm active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <RefreshCw className="w-5 h-5 fill-none" />
-                <span>Play Rematch (New Puzzle)</span>
+                <RefreshCw className="w-4 h-4" />
+                <span>Play Rematch</span>
               </button>
             )}
 
@@ -521,26 +520,21 @@ export const MultiplayerPostGameScreen: React.FC<MultiplayerPostGameScreenProps>
             <button
               type="button"
               onClick={onReturnToLobby}
-              className="w-full py-3 rounded-[16px] bg-white dark:bg-[#1B1E29] hover:bg-black/5 dark:hover:bg-white/5 border border-black/[0.08] dark:border-white/[0.08] text-[#1E2233] dark:text-[#F3F4FA] font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+              className="w-full py-2.5 rounded-xl bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
             >
-              <Users className="w-4 h-4 text-[#5B6CFF]" />
-              <span>Return to Lobby (Change Settings)</span>
+              <Users className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Return to Lobby</span>
             </button>
           </>
         ) : (
           /* Guest: Waiting for Host */
-          <div className="p-4 rounded-[18px] bg-[#5B6CFF]/10 dark:bg-[#5B6CFF]/15 border border-[#5B6CFF]/20 flex items-center gap-3 text-center">
-            <div className="w-9 h-9 rounded-full bg-[#5B6CFF]/20 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-[#5B6CFF] animate-pulse" />
-            </div>
-            <div className="text-left flex-1">
-              <span className="text-xs font-bold text-[#5B6CFF] dark:text-[#7C8CFF] block">
-                Waiting for Host to Start Rematch
-              </span>
-              <span className="text-[11px] text-[#1E2233]/70 dark:text-[#F3F4FA]/70 block mt-0.5">
-                The host can launch a new puzzle immediately or return the party to the room lobby.
-              </span>
-            </div>
+          <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 text-center">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block">
+              Waiting for Host
+            </span>
+            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block mt-0.5">
+              Host will start the next puzzle or return the party to the lobby.
+            </span>
           </div>
         )}
 
@@ -548,10 +542,10 @@ export const MultiplayerPostGameScreen: React.FC<MultiplayerPostGameScreenProps>
         <button
           type="button"
           onClick={onExitHome}
-          className="w-full py-3 rounded-[16px] text-xs font-bold text-[#1E2233]/60 dark:text-[#F3F4FA]/60 hover:text-red-500 transition flex items-center justify-center gap-1.5 cursor-pointer"
+          className="w-full py-2 rounded-xl text-xs font-medium text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 transition flex items-center justify-center gap-1.5 cursor-pointer"
         >
-          <Home className="w-4 h-4" />
-          <span>Exit to Main Menu</span>
+          <Home className="w-3.5 h-3.5" />
+          <span>Exit to Menu</span>
         </button>
       </div>
     </div>
