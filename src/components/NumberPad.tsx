@@ -111,7 +111,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
 
     if (toolbarOrder === "undo-pencil-erase") {
       return (
-        <div className="flex items-center justify-around py-2 mb-3">
+        <div className="flex items-center justify-around py-1 mb-2">
           {undoBtn}
           {pencilBtn}
           {eraseBtn}
@@ -120,7 +120,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
     }
 
     return (
-      <div className="flex items-center justify-around py-2 mb-3">
+      <div className="flex items-center justify-around py-1 mb-2">
         {undoBtn}
         {eraseBtn}
         {pencilBtn}
@@ -136,7 +136,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
       {/* Number Pad Grid or Row */}
       {isGrid ? (
         /* Flutter 3x3 Keypad (widescreen) */
-        <div className="grid grid-cols-3 gap-2.5 max-w-[290px] mx-auto">
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 max-w-[260px] mx-auto">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
             const remaining = remainingCounts[num] ?? 9;
             const isExhausted = remaining <= 0;
@@ -155,7 +155,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
                     : surfaceColor,
                   borderColor: borderColor,
                 }}
-                className={`flex flex-col items-center justify-center h-20 rounded-[12px] border active:scale-95 transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center h-[56px] sm:h-[62px] lg:h-[66px] rounded-[12px] border active:scale-95 transition-all cursor-pointer ${
                   isExhausted ? "opacity-30 pointer-events-none" : "hover:border-[#5B6CFF] shadow-xs"
                 }`}
               >
@@ -167,7 +167,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
                         : "rgba(30, 34, 51, 0.3)"
                       : primaryColor,
                   }}
-                  className="text-[28px] font-bold leading-none mb-1"
+                  className="text-[22px] sm:text-[24px] lg:text-[26px] font-bold leading-none mb-0.5"
                 >
                   {num}
                 </span>
@@ -181,7 +181,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
                       ? "rgba(243, 244, 250, 0.7)"
                       : "rgba(30, 34, 51, 0.7)",
                   }}
-                  className="text-[11px] leading-none"
+                  className="text-[10px] sm:text-[11px] leading-none"
                 >
                   {remaining}
                 </span>

@@ -50,6 +50,10 @@ const themeScript = `
       document.documentElement.classList.remove('dark');
       document.documentElement.setAttribute('data-theme', 'light');
     }
+    var zoomPref = localStorage.getItem('sudoku_zoom');
+    if (zoomPref && zoomPref !== 'auto') {
+      document.documentElement.style.zoom = zoomPref;
+    }
   } catch (e) {}
 })();
 `;

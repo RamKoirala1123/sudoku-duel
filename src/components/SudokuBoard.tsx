@@ -185,31 +185,31 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
   // Exact BoardPalette from lib/core/theme/app_colors.dart
   const palette = isDarkMode
     ? {
-        background: "#1B1E29",
-        boxAltBackground: "#20232F",
-        gridLineThin: "#2E3445",
-        gridLineThick: "#7A869E",
-        givenText: "#F3F4FA",
-        playerText: "#4D9CFF",
-        selectedCell: "#32486E",
-        relatedCell: "#232A3B",
-        sameNumberCell: "#2E3F5F",
-        errorCell: "#4C222B",
-        errorText: "#FF8A93",
-      }
+      background: "#1B1E29",
+      boxAltBackground: "#20232F",
+      gridLineThin: "#2E3445",
+      gridLineThick: "#7A869E",
+      givenText: "#F3F4FA",
+      playerText: "#4D9CFF",
+      selectedCell: "#32486E",
+      relatedCell: "#232A3B",
+      sameNumberCell: "#2E3F5F",
+      errorCell: "#4C222B",
+      errorText: "#FF8A93",
+    }
     : {
-        background: "#FFFFFF",
-        boxAltBackground: "#F1F3FA",
-        gridLineThin: "#D6DCED",
-        gridLineThick: "#344861",
-        givenText: "#1E2233",
-        playerText: "#0072E3",
-        selectedCell: "#BBDEFB",
-        relatedCell: "#E8F0FE",
-        sameNumberCell: "#CCE5FF",
-        errorCell: "#FFCDD2",
-        errorText: "#FF5D6C",
-      };
+      background: "#FFFFFF",
+      boxAltBackground: "#F1F3FA",
+      gridLineThin: "#D6DCED",
+      gridLineThick: "#344861",
+      givenText: "#1E2233",
+      playerText: "#0072E3",
+      selectedCell: "#BBDEFB",
+      relatedCell: "#E8F0FE",
+      sameNumberCell: "#CCE5FF",
+      errorCell: "#FFCDD2",
+      errorText: "#FF5D6C",
+    };
 
   // Precompute filled numbers in each row, column, and 3x3 box for instant note conflict detection
   const rowNumbers = Array.from({ length: 9 }, () => new Set<number>());
@@ -229,7 +229,7 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
   }
 
   return (
-    <div className="w-full max-w-[490px] md:max-w-[510px] lg:max-w-[530px] mx-auto select-none aspect-square p-2">
+    <div className="w-full max-w-[min(480px,calc(100dvh-180px))] mx-auto select-none aspect-square p-1.5 sm:p-2">
       <div
         className="w-full h-full grid grid-cols-9 grid-rows-9 rounded-[12px] overflow-hidden transition-colors shadow-[0_8px_18px_rgba(0,0,0,0.08)] border-[2.5px]"
         style={{
@@ -293,14 +293,14 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
           const borderRightStyle = isRightBoxEdge
             ? `2px solid ${palette.gridLineThick}`
             : isRightThinEdge
-            ? `1px solid ${palette.gridLineThin}`
-            : "none";
+              ? `1px solid ${palette.gridLineThin}`
+              : "none";
 
           const borderBottomStyle = isBottomBoxEdge
             ? `2px solid ${palette.gridLineThick}`
             : isBottomThinEdge
-            ? `1px solid ${palette.gridLineThin}`
-            : "none";
+              ? `1px solid ${palette.gridLineThin}`
+              : "none";
 
           return (
             <div
@@ -313,8 +313,8 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
                 animation: isConflicting
                   ? "cellGentleShake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both"
                   : isShaking
-                  ? "cellErrorShake 450ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both"
-                  : undefined,
+                    ? "cellErrorShake 450ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both"
+                    : undefined,
               }}
               className="relative flex items-center justify-center cursor-pointer transition-colors duration-75 select-none overflow-hidden"
             >
@@ -332,8 +332,8 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
                     boxShadow: activeWave?.isError
                       ? "0 0 14px rgba(255, 93, 108, 0.6)"
                       : isDarkMode
-                      ? "0 0 16px rgba(77, 156, 255, 0.5)"
-                      : "0 0 14px rgba(33, 150, 243, 0.45)",
+                        ? "0 0 16px rgba(77, 156, 255, 0.5)"
+                        : "0 0 14px rgba(33, 150, 243, 0.45)",
                     "--dir-x": cellWave.dirX,
                     "--dir-y": cellWave.dirY,
                   } as React.CSSProperties}
@@ -350,14 +350,14 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
                     animation: isShaking
                       ? "errorNumberPulse 450ms ease-in-out both"
                       : cellWave
-                      ? `waveNumberPop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) ${cellWave.delay}ms both`
-                      : undefined,
+                        ? `waveNumberPop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) ${cellWave.delay}ms both`
+                        : undefined,
                   }}
                 >
                   {val}
                 </span>
               ) : cellCandidates.length > 0 ? (
-                /* 3x3 Pencil notes layout with Flutter proportions, selected number highlight & red error for conflicts */
+                /* 3x3 Pencil notes layout with red conflict indicators & normal font weight */
                 <div className="w-full h-full p-[1.5px] grid grid-cols-3 grid-rows-3 pointer-events-none">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                     const hasCandidate = cellCandidates.includes(num);
@@ -365,18 +365,60 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
                       return <div key={num} className="flex items-center justify-center" />;
                     }
 
+                    // Check if 'num' already exists on board in the same row, column, or 3x3 box
+                    const cellRow = Math.floor(index / 9);
+                    const cellCol = index % 9;
+                    const boxStartRow = Math.floor(cellRow / 3) * 3;
+                    const boxStartCol = Math.floor(cellCol / 3) * 3;
+
+                    let hasConflict = false;
+                    for (let c = 0; c < 9; c++) {
+                      const pIdx = cellRow * 9 + c;
+                      if (pIdx !== index && board[pIdx] === num) {
+                        hasConflict = true;
+                        break;
+                      }
+                    }
+                    if (!hasConflict) {
+                      for (let r = 0; r < 9; r++) {
+                        const pIdx = r * 9 + cellCol;
+                        if (pIdx !== index && board[pIdx] === num) {
+                          hasConflict = true;
+                          break;
+                        }
+                      }
+                    }
+                    if (!hasConflict) {
+                      for (let r = 0; r < 3; r++) {
+                        for (let c = 0; c < 3; c++) {
+                          const pIdx = (boxStartRow + r) * 9 + (boxStartCol + c);
+                          if (pIdx !== index && board[pIdx] === num) {
+                            hasConflict = true;
+                            break;
+                          }
+                        }
+                        if (hasConflict) break;
+                      }
+                    }
+
                     const isSelectedCandidate = selectedVal !== null && selectedVal !== 0 && selectedVal === num;
 
                     let noteColor = palette.playerText;
                     let noteBg = "transparent";
-                    let noteFontWeight = 400;
+                    const noteFontWeight = 400; // Normal font weight
                     let noteTransform = "scale(1)";
 
-                    if (isSelectedCandidate) {
+                    if (hasConflict) {
+                      // Error note: show in clear red
+                      noteColor = isDarkMode ? "#F87171" : "#EF4444";
+                      // noteBg = isDarkMode ? "rgba(239, 68, 68, 0.22)" : "rgba(254, 226, 226, 0.85)";
+                      if (isSelectedCandidate) {
+                        noteTransform = "scale(1.15)";
+                      }
+                    } else if (isSelectedCandidate) {
                       noteBg = isDarkMode ? "#2D4875" : "#CCE5FF";
                       noteColor = isDarkMode ? "#82B8FF" : "#005CBD";
-                      noteFontWeight = 700;
-                      noteTransform = "scale(1.2)";
+                      noteTransform = "scale(1.15)";
                     }
 
                     return (
@@ -393,7 +435,7 @@ export const SudokuBoard: React.FC<SudokuBoardProps> = ({
                             borderRadius: "9999px",
                             transition: "all 120ms ease-out",
                           }}
-                          className="w-full h-full flex items-center justify-center text-[9px] sm:text-[10px] md:text-[11px] lg:text-[12px] leading-none select-none"
+                          className="w-full h-full flex items-center justify-center text-[9px] sm:text-[10px] md:text-[11px] lg:text-[12px] leading-none select-none font-normal"
                         >
                           {num}
                         </span>

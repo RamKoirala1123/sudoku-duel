@@ -77,7 +77,7 @@ export function useSudokuGame(initialDifficulty: Difficulty = 'medium', initialR
   const [pencilMode, setPencilMode] = useState(false);
   const [lastDelta, setLastDelta] = useState<number | null>(null);
   const moveHistoryRef = useRef<MoveRecord[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Timer ticker — only runs when status === 'playing'
   useEffect(() => {
@@ -298,67 +298,27 @@ export function useSudokuGame(initialDifficulty: Difficulty = 'medium', initialR
       // ----------------------------------------------------
       if (pencilMode) {
         const currentList = current.candidates[selected] ?? [];
+        let nextList: number[];
         if (currentList.includes(val)) {
-          // Toggling off an existing note is always allowed
-          const nextList = currentList.filter((n) => n !== val);
-          const newCandidates = { ...current.candidates };
-          if (nextList.length === 0) {
-            delete newCandidates[selected];
-          } else {
-            newCandidates[selected] = nextList;
-          }
-          return { ...current, candidates: newCandidates, conflictHighlight: null };
+          // Toggle off
+          nextList = currentList.filter((n) => n !== val);
+        } else {
+          // Add note (conflicts will be indicated visually in red on the board)
+          nextList = [...currentList, val].sort((a, b) => a - b);
         }
 
-        // User is attempting to add 'val' as a note:
-        // Check if 'val' already exists on the board in the same row, col, or 3x3 box
-        const row = Math.floor(selected / 9);
-        const col = selected % 9;
-        const boxRow = Math.floor(row / 3) * 3;
-        const boxCol = Math.floor(col / 3) * 3;
-
-        const conflictingCells: number[] = [];
-        // Check row
-        for (let c = 0; c < 9; c++) {
-          const idx = row * 9 + c;
-          if (idx !== selected && current.board[idx] === val) {
-            conflictingCells.push(idx);
-          }
-        }
-        // Check column
-        for (let r = 0; r < 9; r++) {
-          const idx = r * 9 + col;
-          if (idx !== selected && current.board[idx] === val && !conflictingCells.includes(idx)) {
-            conflictingCells.push(idx);
-          }
-        }
-        // Check 3x3 box
-        for (let r = 0; r < 3; r++) {
-          for (let c = 0; c < 3; c++) {
-            const idx = (boxRow + r) * 9 + (boxCol + c);
-            if (idx !== selected && current.board[idx] === val && !conflictingCells.includes(idx)) {
-              conflictingCells.push(idx);
-            }
-          }
+        const newCandidates = { ...current.candidates };
+        if (nextList.length === 0) {
+          delete newCandidates[selected];
+        } else {
+          newCandidates[selected] = nextList;
         }
 
-        // If there is any conflict on the board:
-        // DO NOT let user enter that number, and highlight the conflicting cells in red!
-        if (conflictingCells.length > 0) {
-          soundService.playError();
-          return {
-            ...current,
-            conflictHighlight: {
-              id: Date.now(),
-              cellIndices: [selected, ...conflictingCells],
-            },
-          };
-        }
-
-        // No conflict: Add note
-        const nextList = [...currentList, val].sort((a, b) => a - b);
-        const newCandidates = { ...current.candidates, [selected]: nextList };
-        return { ...current, candidates: newCandidates, conflictHighlight: null };
+        return {
+          ...current,
+          candidates: newCandidates,
+          conflictHighlight: null,
+        };
       }
 
       // ----------------------------------------------------

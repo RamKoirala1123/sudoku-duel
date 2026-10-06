@@ -33,6 +33,7 @@ import { MatchFinishedOverlay } from "@/components/MatchFinishedOverlay";
 import { MultiplayerMenuScreen } from "@/components/MultiplayerMenuScreen";
 import { MultiplayerLobbyScreen } from "@/components/MultiplayerLobbyScreen";
 import { MultiplayerPostGameScreen } from "@/components/MultiplayerPostGameScreen";
+import { OpponentLeftDialog } from "@/components/OpponentLeftDialog";
 
 type AppMode = "home" | "solo_game" | "multiplayer_menu" | "multiplayer_lobby" | "multiplayer_game" | "multiplayer_postgame";
 
@@ -120,6 +121,8 @@ export default function SudokuApp() {
 
   const [showPauseDialog, setShowPauseDialog] = useState<boolean>(false);
   const [showRestartConfirmDialog, setShowRestartConfirmDialog] = useState<boolean>(false);
+  const [showOpponentLeftDialog, setShowOpponentLeftDialog] = useState<boolean>(false);
+  const hadMultiplePlayersRef = React.useRef<boolean>(false);
 
   // Sudoku Hook
   const {
@@ -174,7 +177,6 @@ export default function SudokuApp() {
       resolvedDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
 
-    setIsDarkMode(resolvedDark);
     const themeStr = resolvedDark ? "dark" : "light";
     document.documentElement.classList.toggle("dark", resolvedDark);
     document.documentElement.setAttribute("data-theme", themeStr);
@@ -182,31 +184,35 @@ export default function SudokuApp() {
       document.body.classList.toggle("dark", resolvedDark);
       document.body.setAttribute("data-theme", themeStr);
     }
+    const muted = savedMute === "true";
     if (savedMute) {
-      const muted = savedMute === "true";
-      setIsMuted(muted);
       soundService.setMuted(muted);
     }
 
-    if (savedNick) {
-      setNickname(savedNick);
-    } else {
-      const randomNick = `Player${Math.floor(1000 + Math.random() * 9000)}`;
-      setNickname(randomNick);
-      localStorage.setItem("sudoku_nickname", randomNick);
-    }
+    queueMicrotask(() => {
+      setIsDarkMode(resolvedDark);
+      if (savedMute) setIsMuted(muted);
 
-    if (savedStatsStr) {
-      try {
-        setStats(JSON.parse(savedStatsStr));
-      } catch { }
-    }
+      if (savedNick) {
+        setNickname(savedNick);
+      } else {
+        const randomNick = `Player${Math.floor(1000 + Math.random() * 9000)}`;
+        setNickname(randomNick);
+        localStorage.setItem("sudoku_nickname", randomNick);
+      }
 
-    if (savedSessionStr) {
-      try {
-        setActiveSession(JSON.parse(savedSessionStr));
-      } catch { }
-    }
+      if (savedStatsStr) {
+        try {
+          setStats(JSON.parse(savedStatsStr));
+        } catch { }
+      }
+
+      if (savedSessionStr) {
+        try {
+          setActiveSession(JSON.parse(savedSessionStr));
+        } catch { }
+      }
+    });
   }, []);
 
   const handleToggleTheme = () => {
@@ -298,6 +304,12 @@ export default function SudokuApp() {
   const setupRoomListeners = useCallback(() => {
     roomService.onPlayersChanged = (updated) => {
       setPlayers([...updated]);
+      if (
+        hadMultiplePlayersRef.current &&
+        updated.length <= 1
+      ) {
+        setShowOpponentLeftDialog(true);
+      }
     };
 
     roomService.onSettingsChanged = (diff: Difficulty, rule: MistakeRule) => {
@@ -308,6 +320,8 @@ export default function SudokuApp() {
     roomService.onGameStarted = (puzzle: SudokuPuzzle, rule: MistakeRule) => {
       setMistakeRule(rule);
       setDifficulty(puzzle.difficulty);
+      hadMultiplePlayersRef.current = roomService.playersList.length >= 2;
+      setShowOpponentLeftDialog(false);
       startWithPuzzle(puzzle, rule);
       setMode("multiplayer_game");
       setShowCountdown(true);
@@ -418,6 +432,8 @@ export default function SudokuApp() {
   // Host launches game
   const handleHostStartMatch = useCallback(() => {
     if (players.length < 2) return;
+    hadMultiplePlayersRef.current = true;
+    setShowOpponentLeftDialog(false);
     const puzzle = generateSudoku(difficulty);
     roomService.startGame(puzzle, mistakeRule);
     startWithPuzzle(puzzle, mistakeRule);
@@ -432,6 +448,8 @@ export default function SudokuApp() {
 
   // Leave room or exit match
   const handleLeaveRoom = useCallback(() => {
+    hadMultiplePlayersRef.current = false;
+    setShowOpponentLeftDialog(false);
     roomService.disconnect();
     if (typeof window !== "undefined") {
       window.history.replaceState(null, "", window.location.pathname);
@@ -441,9 +459,50 @@ export default function SudokuApp() {
     handleDiscardSession();
   }, []);
 
+  // Opponent left: continue solo handler
+  const handleContinueSoloFromPrompt = useCallback(() => {
+    setShowOpponentLeftDialog(false);
+    hadMultiplePlayersRef.current = false;
+    roomService.disconnect();
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    setMode("solo_game");
+    setIsSpectating(false);
+  }, []);
+
+  // Opponent left: return home handler
+  const handleReturnHomeFromPrompt = useCallback(() => {
+    setShowOpponentLeftDialog(false);
+    hadMultiplePlayersRef.current = false;
+    handleLeaveRoom();
+  }, [handleLeaveRoom]);
+
+  // Disconnect from room when user closes tab, reloads, or navigates away
+  useEffect(() => {
+    const handleWindowUnload = () => {
+      if (
+        mode === "multiplayer_game" ||
+        mode === "multiplayer_lobby" ||
+        mode === "multiplayer_postgame"
+      ) {
+        roomService.disconnect();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleWindowUnload);
+    window.addEventListener("pagehide", handleWindowUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleWindowUnload);
+      window.removeEventListener("pagehide", handleWindowUnload);
+    };
+  }, [mode]);
+
   // Host launches rematch with newly generated puzzle
   const handleHostRematch = useCallback(() => {
     if (players.length < 2) return;
+    hadMultiplePlayersRef.current = true;
+    setShowOpponentLeftDialog(false);
     const newPuzzle = generateSudoku(difficulty);
     roomService.startRematch(newPuzzle);
     startWithPuzzle(newPuzzle, mistakeRule);
@@ -454,6 +513,8 @@ export default function SudokuApp() {
 
   // Host returns everyone to lobby to adjust settings
   const handleReturnToLobby = useCallback(() => {
+    hadMultiplePlayersRef.current = false;
+    setShowOpponentLeftDialog(false);
     roomService.returnToLobby();
     setIsSpectating(false);
     setPlayers([...roomService.playersList]);
@@ -649,6 +710,15 @@ export default function SudokuApp() {
           players={players}
           isMultiplayer={true}
           onBackToHome={handleBackHome}
+        />
+      )}
+
+      {/* Opponents Left Match Prompt */}
+      {showOpponentLeftDialog && mode === "multiplayer_game" && (
+        <OpponentLeftDialog
+          onContinueSolo={handleContinueSoloFromPrompt}
+          onReturnHome={handleReturnHomeFromPrompt}
+          isDarkMode={isDarkMode}
         />
       )}
 
@@ -971,9 +1041,9 @@ export default function SudokuApp() {
           {!isGenerating && (
             <>
               {/* Flutter Widescreen 2-column layout (>= 768px): Board LEFT, Controls RIGHT */}
-              <div className="hidden md:flex flex-row items-start justify-center gap-3 lg:gap-5 w-full mt-2 px-1">
+              <div className="hidden md:flex flex-row items-start justify-center gap-3 lg:gap-4 w-full mt-1.5 px-1">
                 {/* Left Column: Board */}
-                <div className="w-full max-w-[460px] lg:max-w-[500px] shrink-0">
+                <div className="w-full max-w-[min(450px,calc(100dvh-175px))] lg:max-w-[min(480px,calc(100dvh-175px))] shrink-0">
                   <SudokuBoard
                     state={gameState}
                     onSelectCell={selectCell}
@@ -986,7 +1056,7 @@ export default function SudokuApp() {
                 </div>
 
                 {/* Right Column: Toolbar + 3x3 Number Grid */}
-                <div className="w-[230px] lg:w-[260px] shrink-0 flex flex-col pt-1.5">
+                <div className="w-[210px] lg:w-[240px] shrink-0 flex flex-col pt-1">
                   <NumberPad
                     remainingCounts={remainingCounts}
                     isNotesMode={isNotesMode}
@@ -1022,8 +1092,8 @@ export default function SudokuApp() {
 
               {/* Flutter Mobile layout (< 768px): Board top, toolbar + 1-row pad below */}
               <div className="flex md:hidden flex-col items-center w-full max-w-[500px]">
-                {/* Board (max 480px) */}
-                <div className="w-full max-w-[480px]">
+                {/* Board */}
+                <div className="w-full max-w-[min(460px,calc(100dvh-220px))]">
                   <SudokuBoard
                     state={gameState}
                     onSelectCell={selectCell}
